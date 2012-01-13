@@ -22,7 +22,7 @@ TASKS = {
     :optim   => 'resimleri iyileştir',
     :default => 'öntanımlı görev',
 }
-# görevleriı ve açıklamalarını tanımla 
+# görevler ve açıklamalarını tanımlanmış 
 
 
 presentation   = {} 
@@ -126,10 +126,10 @@ FileList[File.join(PRESENTATION_DIR, "[^_.]*")].each do |dir|
 
     if File.exists?('index.md')  #index.md dosyası varsa
       base = 'index'             # base değişkenine 'index' ata
-      ispublic = true            # ispublic değikenine true boolen değerini ata 
+      ispublic = true            # ispublic değikenine true boolen değerini ata (dışarı açık)
     elsif File.exists?('presentation.md') #üstteki if içine girmemişsen, presentation.md dosyasının var mı diye bak varsa
       base = 'presentation'               # base değişkenine 'presentation' ata
-      ispublic = false                    # ispublic değişkenine false boolen değerini ata
+      ispublic = false                    # ispublic değişkenine false boolen değerini ata (dışarı açık değil)
     else  # her iki dosya da yoksa 
       $stderr.puts "#{dir}: sunum kaynağı 'presentation.md' veya 'index.md' olmalı" # standart error a hata mesajı bas
       exit 1  #1 den çık
@@ -175,8 +175,8 @@ tasktab = Hash[*TASKS.map { |k, v| [k, { :desc => v, :tasks => [] }] }.flatten] 
 
 presentation.each do |presentation, data|
   ns = namespace presentation do
-    file data[:target] => data[:deps] do |t|
-      chdir presentation do
+    file data[:target] => data[:deps] do |t|  #içeriği al 
+      chdir presentation do                   # sunumu hazırla 
         sh "landslide -i #{data[:conffile]}"
         sh 'sed -i -e "s/^\([[:blank:]]*var hiddenContext = \)false\(;[[:blank:]]*$\)/\1true\2/" presentation.html'
         unless data[:basename] == 'presentation.html'
@@ -185,17 +185,17 @@ presentation.each do |presentation, data|
       end
     end
 
-    file data[:thumbnail] => data[:target] do
-      next unless data[:public]
+    file data[:thumbnail] => data[:target] do   #thumbnaili (küçük resmi) target e (hedef dosyaya) gönder
+      next unless data[:public]                 # dışa açık değilse 
       sh "cutycapt " +
           "--url=file://#{File.absolute_path(data[:target])}#slide1 " +
           "--out=#{data[:thumbnail]} " +
-          "--user-style-string='div.slides { width: 900px; overflow: hidden; }' " +
+          "--user-style-string='div.slides { width: 900px; overflow: hidden; }' " + #thumbnaili düzenle 
           "--min-width=1024 " +
           "--min-height=768 " +
           "--delay=1000"
-      sh "mogrify -resize 240 #{data[:thumbnail]}"
-      png_optim(data[:thumbnail])
+      sh "mogrify -resize 240 #{data[:thumbnail]}"   #thumbnaili yeniden boyutlandır
+      png_optim(data[:thumbnail])                    #png_optim fonksiyonu ile optimize et.
     end
 
     task :optim do
@@ -204,50 +204,50 @@ presentation.each do |presentation, data|
       end
     end
 
-    task :index => data[:thumbnail]
+    task :index => data[:thumbnail]  #indexle (index görevini uygula)
 
-    task :build => [:optim, data[:target], :index]
+    task :build => [:optim, data[:target], :index] # optim target ve index i build et (build görevini uygula)
 
     task :view do
-      if File.exists?(data[:target])
-        sh "touch #{data[:directory]}; #{browse_command data[:target]}"
-      else
-        $stderr.puts "#{data[:target]} bulunamadı; önce inşa edin"
+      if File.exists?(data[:target]) #hedef dosya varsa
+        sh "touch #{data[:directory]}; #{browse_command data[:target]}" # istenilenleri oluştur
+      else # diğer durum için (dosya yoksa)
+        $stderr.puts "#{data[:target]} bulunamadı; önce inşa edin" # standart error a hata mesajı bas
       end
     end
 
-    task :run => [:build, :view]
+    task :run => [:build, :view] # build ve view görevlerini çalıştır
 
-    task :clean do
-      rm_f data[:target]
-      rm_f data[:thumbnail]
+    task :clean do          # targeti(hedef dosyayı)
+      rm_f data[:target]    # ve thumbnaili (küçük resmi)
+      rm_f data[:thumbnail] # temizle
     end
 
-    task :default => :build
+    task :default => :build # öntanımlı rake görevini build olarak ayarla 
   end
 
-  ns.tasks.map(&:to_s).each do |t|
-    _, _, name = t.partition(":").map(&:to_sym)
-    next unless tasktab[name]
-    tasktab[name][:tasks] << t
+  ns.tasks.map(&:to_s).each do |t|                  #görev tablosuna 
+    _, _, name = t.partition(":").map(&:to_sym)     #verilen 
+    next unless tasktab[name]                       #görevleri 
+    tasktab[name][:tasks] << t                      #ekle
   end
 end
 
-namespace :p do
-  tasktab.each do |name, info|
-    desc info[:desc]
+namespace :p do #üst isimuzayında aşağıdakileri yap 
+  tasktab.each do |name, info| #görev listesinin her elamnı için 
+    desc info[:desc]           #yeni görevleri tanıma 
     task name => info[:tasks]
     task name[0] => name
   end
 
   task :build do
-    index = YAML.load_file(INDEX_FILE) || {}
+    index = YAML.load_file(INDEX_FILE) || {} 
     presentations = presentation.values.select { |v| v[:public] }.map { |v| v[:directory] }.sort
-    unless index and presentations == index['presentations']
-      index['presentations'] = presentations
-      File.open(INDEX_FILE, 'w') do |f|
-        f.write(index.to_yaml)
-        f.write("---\n")
+    unless index and presentations == index['presentations'] # koşul sağlanmadığı sürece
+      index['presentations'] = presentations                 # index['presentation'] değerini presentation a eşitle
+      File.open(INDEX_FILE, 'w') do |f|                      # INDEX_FILE ı yazılabilir olarak aç
+        f.write(index.to_yaml)                               # index i yaml a çevirdikten sonra yaz
+        f.write("---\n")                                     # '---\n' dizgisini yaz
       end
     end
   end
@@ -272,7 +272,7 @@ namespace :p do
     directory = lookup[name]
     Rake::Task["#{directory}:run"].invoke
   end
-  task :m => :menu
+  task :m => :menu     # m için menü görevini çalıştır .
 end
 
 desc "sunum menüsü"
