@@ -3,7 +3,7 @@ require 'yaml'
 
 task :exam do
   Dir.foreach("_exams/") do |sourceFile|
-    unless ((source == "..") or  (sourceFile == "."))
+    unless ((sourceFile == "..") or  (sourceFile == "."))
 
       fpath = YAML.load_file("_exams/"+sourceFile) 
       title = dosya_yolu["title"]
