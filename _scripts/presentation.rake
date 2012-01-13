@@ -84,27 +84,27 @@ def optim
 
   (pngs + jpgs).each do |f|
     w, h = %x{identify -format '%[fx:w] %[fx:h]' #{f}}.split.map { |e| e.to_i }
-    size, i = [w, h].each_with_index.max
-    if size > IMAGE_GEOMETRY[i]
-      arg = (i > 0 ? 'x' : '') + IMAGE_GEOMETRY[i].to_s
-      sh "mogrify -resize #{arg} #{f}"
+    size, i = [w, h].each_with_index.max      
+    if size > IMAGE_GEOMETRY[i]                         #resimler istenilen boyuttan büyükse 
+      arg = (i > 0 ? 'x' : '') + IMAGE_GEOMETRY[i].to_s 
+      sh "mogrify -resize #{arg} #{f}"                  # yeniden boyutlandır
     end
   end
 
-  pngs.each { |f| png_optim(f) }
-  jpgs.each { |f| jpg_optim(f) }
+  pngs.each { |f| png_optim(f) } # her bir pngs için png_optim fonksiyonunu kullan 
+  jpgs.each { |f| jpg_optim(f) } # her biri jpgs için jpg_optim fonksiyonunu kullan
 
-  (pngs + jpgs).each do |f|
-    name = File.basename f
-    FileList["*/*.md"].each do |src|
-      sh "grep -q '(.*#{name})' #{src} && touch #{src}"
+  (pngs + jpgs).each do |f|    # jpgs ve pngs ler için 
+    name = File.basename f     
+    FileList["*/*.md"].each do |src| #md dosyarlarını oluştur                    
+      sh "grep -q '(.*#{name})' #{src} && touch #{src}" # ekrana birşey basma (-q (quiet))
     end
   end
 end
 
-default_conffile = File.expand_path(DEFAULT_CONFFILE)
+default_conffile = File.expand_path(DEFAULT_CONFFILE)  #default_conffile a DEFAULT_CONFFİLE ın tam yolunu ata
 
-FileList[File.join(PRESENTATION_DIR, "[^_.]*")].each do |dir|
+FileList[File.join(PRESENTATION_DIR, "[^_.]*")].each do |dir|  
   next unless File.directory?(dir)
   chdir dir do
     name = File.basename(dir)
@@ -114,39 +114,39 @@ FileList[File.join(PRESENTATION_DIR, "[^_.]*")].each do |dir|
     end
 
     landslide = config['landslide']
-    if ! landslide
-      $stderr.puts "#{dir}: 'landslide' bölümü tanımlanmamış"
-      exit 1
+    if ! landslide                                             #landslide tanımlanmamışsa
+      $stderr.puts "#{dir}: 'landslide' bölümü tanımlanmamış"  #standar error a hata mesajı bas
+      exit 1   # 1 den çık
     end
 
-    if landslide['destination']
-      $stderr.puts "#{dir}: 'destination' ayarı kullanılmış; hedef dosya belirtilmeyin"
-      exit 1
+    if landslide['destination']                                                         # destination ayarı kullanılmışsa
+      $stderr.puts "#{dir}: 'destination' ayarı kullanılmış; hedef dosya belirtilmeyin" # standart error a hata mesejı bas
+      exit 1  # 1 den çık
     end
 
-    if File.exists?('index.md')
-      base = 'index'
-      ispublic = true
-    elsif File.exists?('presentation.md')
-      base = 'presentation'
-      ispublic = false
-    else
-      $stderr.puts "#{dir}: sunum kaynağı 'presentation.md' veya 'index.md' olmalı"
-      exit 1
+    if File.exists?('index.md')  #index.md dosyası varsa
+      base = 'index'             # base değişkenine 'index' ata
+      ispublic = true            # ispublic değikenine true boolen değerini ata 
+    elsif File.exists?('presentation.md') #üstteki if içine girmemişsen, presentation.md dosyasının var mı diye bak varsa
+      base = 'presentation'               # base değişkenine 'presentation' ata
+      ispublic = false                    # ispublic değişkenine false boolen değerini ata
+    else  # her iki dosya da yoksa 
+      $stderr.puts "#{dir}: sunum kaynağı 'presentation.md' veya 'index.md' olmalı" # standart error a hata mesajı bas
+      exit 1  #1 den çık
     end
 
-    basename = base + '.html'
-    thumbnail = File.to_herepath(base + '.png')
-    target = File.to_herepath(basename)
+    basename = base + '.html'   # base name i base.hml olarak ata (örnek : base = 'index' ise basename = 'index.html')
+    thumbnail = File.to_herepath(base + '.png') #thumbnail e base.png (base='index' için index.png) dosyasını at 
+    target = File.to_herepath(basename) # basename in tuttuğu dosyayı target e ata
 
     deps = []
     (DEPEND_ALWAYS + landslide.values_at(*DEPEND_KEYS)).compact.each do |v|
       deps += v.split.select { |p| File.exists?(p) }.map { |p| File.to_filelist(p) }.flatten
     end
 
-    deps.map! { |e| File.to_herepath(e) }
-    deps.delete(target)
-    deps.delete(thumbnail)
+    deps.map! { |e| File.to_herepath(e) } 
+    deps.delete(target) # target i sil
+    deps.delete(thumbnail) # thumbnail i sil
 
     tags = []
 
@@ -164,14 +164,14 @@ FileList[File.join(PRESENTATION_DIR, "[^_.]*")].each do |dir|
   end
 end
 
-presentation.each do |k, v|
-  v[:tags].each do |t|
+presentation.each do |k, v| # her bir sunum dosyası için
+  v[:tags].each do |t|      # etiketleme yap
     tag[t] ||= []
     tag[t] << k
   end
 end
 
-tasktab = Hash[*TASKS.map { |k, v| [k, { :desc => v, :tasks => [] }] }.flatten]
+tasktab = Hash[*TASKS.map { |k, v| [k, { :desc => v, :tasks => [] }] }.flatten]  # görevler sekmesi
 
 presentation.each do |presentation, data|
   ns = namespace presentation do
