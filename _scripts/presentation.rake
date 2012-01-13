@@ -1,16 +1,18 @@
-
 require 'pathname'
 require 'pythonconfig'
 require 'yaml'
+# pathname, pythonconfig, yaml modüllerindeki fonksiyonların kullanılabilmesi için bağımlılık bildirildi
 
 CONFIG = Config.fetch('presentation', {})
+# sunumu al
 
-PRESENTATION_DIR = CONFIG.fetch('directory', 'p')
-DEFAULT_CONFFILE = CONFIG.fetch('conffile', '_templates/presentation.cfg')
-INDEX_FILE = File.join(PRESENTATION_DIR, 'index.html')
-IMAGE_GEOMETRY = [ 733, 550 ]
-DEPEND_KEYS    = %w(source css js)
-DEPEND_ALWAYS  = %w(media)
+PRESENTATION_DIR = CONFIG.fetch('directory', 'p') # PRESENTATION_DIR a directory içindekileri ata
+DEFAULT_CONFFILE = CONFIG.fetch('conffile', '_templates/presentation.cfg') #
+INDEX_FILE = File.join(PRESENTATION_DIR, 'index.html') # PRESANTATION_DIR ile index.html yi birleştir INDEX_FILE a ata
+IMAGE_GEOMETRY = [ 733, 550 ] # Maximum resim boyutlarını 733x550 olarak ata
+DEPEND_KEYS    = %w(source css js) # bağımlı anahtarları ata
+DEPEND_ALWAYS  = %w(media) # sürekli bağımlıları ata
+
 TASKS = {
     :index   => 'sunumları indeksle',
     :build   => 'sunumları oluştur',
@@ -20,45 +22,58 @@ TASKS = {
     :optim   => 'resimleri iyileştir',
     :default => 'öntanımlı görev',
 }
+# görevleriı ve açıklamalarını tanımla 
 
-presentation   = {}
+
+presentation   = {} 
 tag            = {}
 
+
+
 class File
-  @@absolute_path_here = Pathname.new(Pathname.pwd)
+  @@absolute_path_here = Pathname.new(Pathname.pwd)   #dosya yolunu statik absolute_path_here değişkenine ata
   def self.to_herepath(path)
     Pathname.new(File.expand_path(path)).relative_path_from(@@absolute_path_here).to_s
   end
   def self.to_filelist(path)
-    File.directory?(path) ?
-      FileList[File.join(path, '*')].select { |f| File.file?(f) } :
+    File.directory?(path) ?                                          
+      FileList[File.join(path, '*')].select { |f| File.file?(f) } :  
       [path]
   end
 end
+# File classını tanımlanmış , File classı içerisinde  to_herepath ve to_filelist methodlarını tanımlanmış
+
+
 
 def png_comment(file, string)
-  require 'chunky_png'
+  require 'chunky_png' 
   require 'oily_png'
-
-  image = ChunkyPNG::Image.from_file(file)
-  image.metadata['Comment'] = 'raked'
-  image.save(file)
+  #fonksiyonun chunky_png ve oily_png modullerine bağımlılığı belirtilmiş
+  image = ChunkyPNG::Image.from_file(file) #resmi image değişkenine ata 
+  image.metadata['Comment'] = 'raked'      #yorumu ekle
+  image.save(file)                         #resmin son halini kaydet
 end
+#png dosyalarına yorum ekleyecek png_comment fonksiyonu tanımlanmış 
+
 
 def png_optim(file, threshold=40000)
-  return if File.new(file).size < threshold
+  return if File.new(file).size < threshold  # sadece boyutu verilen değerden küçük olanlara işlem yap
   sh "pngnq -f -e .png-nq #{file}"
   out = "#{file}-nq"
   if File.exist?(out)
-    $?.success? ? File.rename(out, file) : File.delete(out)
+    $?.success? ? File.rename(out, file) : File.delete(out) #isim çakışması var mı? varsa çöz .
   end
   png_comment(file, 'raked')
 end
+#png dosyalarını optimize edicek png_optim fonksiyonu tanımlanmış
+
 
 def jpg_optim(file)
   sh "jpegoptim -q -m80 #{file}"
   sh "mogrify -comment 'raked' #{file}"
 end
+# jpg dosyalarını optimize edicek jpg_optim fonksiyonu tanımlanmış 
+
 
 def optim
   pngs, jpgs = FileList["**/*.png"], FileList["**/*.jpg", "**/*.jpeg"]
